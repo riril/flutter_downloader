@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 
+import androidx.annotation.NonNull;
 import androidx.core.app.NotificationManagerCompat;
 
 import java.io.File;
@@ -69,33 +70,47 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
     }
 
     @Override
-    public void onMethodCall(MethodCall call, MethodChannel.Result result) {
-        if (call.method.equals("initialize")) {
-            initialize(call, result);
-        } else if (call.method.equals("registerCallback"))  {
-            registerCallback(call, result);
-        } else if (call.method.equals("enqueue")) {
-            enqueue(call, result);
-        } else if (call.method.equals("loadTasks")) {
-            loadTasks(call, result);
-        } else if (call.method.equals("loadTasksWithRawQuery")) {
-            loadTasksWithRawQuery(call, result);
-        } else if (call.method.equals("cancel")) {
-            cancel(call, result);
-        } else if (call.method.equals("cancelAll")) {
-            cancelAll(call, result);
-        } else if (call.method.equals("pause")) {
-            pause(call, result);
-        } else if (call.method.equals("resume")) {
-            resume(call, result);
-        } else if (call.method.equals("retry")) {
-            retry(call, result);
-        } else if (call.method.equals("open")) {
-            open(call, result);
-        } else if (call.method.equals("remove")) {
-            remove(call, result);
-        } else {
-            result.notImplemented();
+    public void onMethodCall(MethodCall call, @NonNull MethodChannel.Result result) {
+        switch (call.method) {
+            case "initialize":
+                initialize(call, result);
+                break;
+            case "registerCallback":
+                registerCallback(call, result);
+                break;
+            case "enqueue":
+                enqueue(call, result);
+                break;
+            case "loadTasks":
+                loadTasks(call, result);
+                break;
+            case "loadTasksWithRawQuery":
+                loadTasksWithRawQuery(call, result);
+                break;
+            case "cancel":
+                cancel(call, result);
+                break;
+            case "cancelAll":
+                cancelAll(call, result);
+                break;
+            case "pause":
+                pause(call, result);
+                break;
+            case "resume":
+                resume(call, result);
+                break;
+            case "retry":
+                retry(call, result);
+                break;
+            case "open":
+                open(call, result);
+                break;
+            case "remove":
+                remove(call, result);
+                break;
+            default:
+                result.notImplemented();
+                break;
         }
     }
 
@@ -114,14 +129,14 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
     }
 
     private WorkRequest buildRequest(String url, String savedDir, String filename, String headers, boolean showNotification, boolean openFileFromNotification, boolean isResume, boolean requiresStorageNotLow) {
-        WorkRequest request = new OneTimeWorkRequest.Builder(DownloadWorker.class)
+        return new OneTimeWorkRequest.Builder(DownloadWorker.class)
                 .setConstraints(new Constraints.Builder()
                         .setRequiresStorageNotLow(requiresStorageNotLow)
                         // fix https://github.com/fluttercommunity/flutter_downloader/issues/129
                         //.setRequiredNetworkType(NetworkType.CONNECTED)
                         .build())
                 .addTag(TAG)
-                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 5, TimeUnit.SECONDS)
+                .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
                 .setInputData(new Data.Builder()
                         .putString(DownloadWorker.ARG_URL, url)
                         .putString(DownloadWorker.ARG_SAVED_DIR, savedDir)
@@ -136,7 +151,6 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
                         .build()
                 )
                 .build();
-        return request;
     }
 
     private void sendUpdateProgress(String id, int status, int progress) {

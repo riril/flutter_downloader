@@ -46,6 +46,7 @@ import java.util.regex.Pattern;
 
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
+import androidx.work.ForegroundInfo;
 
 import android.util.Base64;
 
@@ -57,6 +58,8 @@ import io.flutter.view.FlutterCallbackInformation;
 import io.flutter.view.FlutterMain;
 import io.flutter.view.FlutterNativeView;
 import io.flutter.view.FlutterRunArguments;
+
+import android.app.Notification;
 
 public class DownloadWorker extends Worker implements MethodChannel.MethodCallHandler {
     public static final String ARG_URL = "url";
@@ -187,8 +190,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         DownloadTask task = taskDao.loadTask(getId().toString());
         primaryId = task.primaryId;
 
-        buildNotification(context);
-
+        setForegroundAsync(buildNotification(context, primaryId));
         updateNotification(context, filename == null ? url : filename, DownloadStatus.RUNNING, task.progress, null);
         taskDao.updateTask(getId().toString(), DownloadStatus.RUNNING, 0);
 
@@ -347,7 +349,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                     int progress = (int) ((count * 100) / (contentLength + downloadedBytes));
                     outputStream.write(buffer, 0, bytesRead);
 
-                    if ((lastProgress == 0 || progress > (lastProgress + stepUpdate) || progress == 100)
+                    if ((lastProgress == 0 || progress >= (lastProgress + stepUpdate) || progress == 100)
                             && progress != lastProgress) {
                         lastProgress = progress;
                         updateNotification(context, filename, DownloadStatus.RUNNING, progress, null);
@@ -434,7 +436,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
         }
     }
 
-    private void buildNotification(Context context) {
+    private ForegroundInfo buildNotification(Context context, int primaryId) {
         // Make a channel if necessary
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             // Create the NotificationChannel, but only on API 26+ because
@@ -455,11 +457,14 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
         // Create the notification
         builder = new NotificationCompat.Builder(context, CHANNEL_ID)
-//                .setSmallIcon(R.drawable.ic_download)
+                .setSmallIcon(R.drawable.ic_download)
                 .setOnlyAlertOnce(true)
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT);
-
+//                .setContentTitle(name)
+//                .setTicker(name)
+//                .setOngoing(true)
+        return new ForegroundInfo(primaryId, builder.build());
     }
 
     private void updateNotification(Context context, String title, int status, int progress, PendingIntent intent) {
@@ -500,10 +505,10 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
             NotificationManagerCompat.from(context).notify(primaryId, builder.build());
         }
 
-        sendUpdateProcessEvent(status, progress);
+        sendUpdateProgressEvent(status, progress);
     }
 
-    private void sendUpdateProcessEvent(int status, int progress) {
+    private void sendUpdateProgressEvent(int status, int progress) {
         final List<Object> args = new ArrayList<>();
         long callbackHandle = getInputData().getLong(ARG_CALLBACK_HANDLE, 0);
         args.add(callbackHandle);
