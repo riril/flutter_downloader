@@ -1,5 +1,6 @@
 package vn.hunghd.flutterdownloader;
 
+import android.annotation.SuppressLint;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -10,19 +11,21 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
-import android.graphics.BitmapFactory;
 import android.os.Build;
+import android.os.Environment;
+import android.os.Handler;
+import android.provider.MediaStore;
+import android.text.TextUtils;
+import android.util.Base64;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
-
-import android.os.Environment;
-import android.os.Handler;
-import android.provider.MediaStore;
-import android.text.TextUtils;
-import android.util.Log;
+import androidx.work.ForegroundInfo;
+import androidx.work.Worker;
+import androidx.work.WorkerParameters;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -44,12 +47,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import androidx.work.Worker;
-import androidx.work.WorkerParameters;
-import androidx.work.ForegroundInfo;
-
-import android.util.Base64;
-
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.PluginRegistry;
@@ -58,8 +55,6 @@ import io.flutter.view.FlutterCallbackInformation;
 import io.flutter.view.FlutterMain;
 import io.flutter.view.FlutterNativeView;
 import io.flutter.view.FlutterRunArguments;
-
-import android.app.Notification;
 
 public class DownloadWorker extends Worker implements MethodChannel.MethodCallHandler {
     public static final String ARG_URL = "url";
@@ -79,12 +74,12 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
 
     private static final AtomicBoolean isolateStarted = new AtomicBoolean(false);
     private static final ArrayDeque<List> isolateQueue = new ArrayDeque<>();
+    @SuppressLint("StaticFieldLeak")
     private static FlutterNativeView backgroundFlutterView;
 
     private final Pattern charsetPattern = Pattern.compile("(?i)\\bcharset=\\s*\"?([^\\s;\"]*)");
 
     private MethodChannel backgroundChannel;
-    private TaskDbHelper dbHelper;
     private TaskDao taskDao;
     private NotificationCompat.Builder builder;
     private boolean showNotification;
@@ -117,10 +112,6 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                 FlutterMain.ensureInitializationComplete(context, null);
 
                 FlutterCallbackInformation callbackInfo = FlutterCallbackInformation.lookupCallbackInformation(callbackHandle);
-                if (callbackInfo == null) {
-                    Log.e(TAG, "Fatal: failed to find callback");
-                    return;
-                }
 
                 backgroundFlutterView = new FlutterNativeView(getApplicationContext(), true);
 
@@ -145,7 +136,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     }
 
     @Override
-    public void onMethodCall(MethodCall call, MethodChannel.Result result) {
+    public void onMethodCall(MethodCall call, @NonNull MethodChannel.Result result) {
         if (call.method.equals("didInitializeDispatcher")) {
             synchronized (isolateStarted) {
                 while (!isolateQueue.isEmpty()) {
@@ -163,7 +154,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
     @Override
     public Result doWork() {
         Context context = getApplicationContext();
-        dbHelper = TaskDbHelper.getInstance(context);
+        TaskDbHelper dbHelper = TaskDbHelper.getInstance(context);
         taskDao = new TaskDao(dbHelper);
 
         String url = getInputData().getString(ARG_URL);
