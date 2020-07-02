@@ -16,7 +16,7 @@ import 'models.dart';
 /// * `progress`: current progress value of a download task, the value is in
 /// range of 0 and 100
 ///
-typedef void DownloadCallback(String id, DownloadTaskStatus status, int progress);
+typedef void DownloadCallback(String id, DownloadTaskStatus status, int progress, int downloaded, int all);
 
 ///
 /// A convenient class wraps all api functions of **FlutterDownloader** plugin
@@ -59,14 +59,13 @@ class FlutterDownloader {
   ///
   /// an unique identifier of the new download task
   ///
-  static Future<String> enqueue(
-      {@required String url,
-      @required String savedDir,
-      String fileName,
-      Map<String, String> headers,
-      bool showNotification = true,
-      bool openFileFromNotification = true,
-      bool requiresStorageNotLow = true}) async {
+  static Future<String> enqueue({@required String url,
+    @required String savedDir,
+    String fileName,
+    Map<String, String> headers,
+    bool showNotification = true,
+    bool openFileFromNotification = true,
+    bool requiresStorageNotLow = true}) async {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
     assert(Directory(savedDir).existsSync());
 
@@ -106,14 +105,15 @@ class FlutterDownloader {
     try {
       List<dynamic> result = await _channel.invokeMethod('loadTasks');
       return result
-          .map((item) => new DownloadTask(
-              taskId: item['task_id'],
-              status: DownloadTaskStatus(item['status']),
-              progress: item['progress'],
-              url: item['url'],
-              filename: item['file_name'],
-              savedDir: item['saved_dir'],
-              timeCreated: item['time_created']))
+          .map((item) =>
+      new DownloadTask(
+          taskId: item['task_id'],
+          status: DownloadTaskStatus(item['status']),
+          progress: item['progress'],
+          url: item['url'],
+          filename: item['file_name'],
+          savedDir: item['saved_dir'],
+          timeCreated: item['time_created']))
           .toList();
     } on PlatformException catch (e) {
       print(e.message);
@@ -147,14 +147,15 @@ class FlutterDownloader {
     try {
       List<dynamic> result = await _channel.invokeMethod('loadTasksWithRawQuery', {'query': query});
       return result
-          .map((item) => new DownloadTask(
-              taskId: item['task_id'],
-              status: DownloadTaskStatus(item['status']),
-              progress: item['progress'],
-              url: item['url'],
-              filename: item['file_name'],
-              savedDir: item['saved_dir'],
-              timeCreated: item['time_created']))
+          .map((item) =>
+      new DownloadTask(
+          taskId: item['task_id'],
+          status: DownloadTaskStatus(item['status']),
+          progress: item['progress'],
+          url: item['url'],
+          filename: item['file_name'],
+          savedDir: item['saved_dir'],
+          timeCreated: item['time_created']))
           .toList();
     } on PlatformException catch (e) {
       print(e.message);
@@ -377,13 +378,14 @@ class FlutterDownloader {
     assert(_initialized, 'FlutterDownloader.initialize() must be called first');
     _channel.setMethodCallHandler(null);
     if (callback != null) {
-      // remove previous setting
       _channel.setMethodCallHandler((MethodCall call) async {
         if (call.method == 'updateProgress') {
           String id = call.arguments['task_id'];
           int status = call.arguments['status'];
           int process = call.arguments['progress'];
-          callback(id, DownloadTaskStatus(status), process);
+          int downloaded = call.arguments['downloaded'];
+          int all = call.arguments['all'];
+          callback(id, DownloadTaskStatus(status), process, downloaded, all);
         }
         return null;
       });

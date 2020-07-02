@@ -158,6 +158,8 @@ public class FlutterDownloaderPlugin implements MethodCallHandler, FlutterPlugin
         args.put("task_id", id);
         args.put("status", status);
         args.put("progress", progress);
+        args.put("downloaded", 0);
+        args.put("all", 0);
         flutterChannel.invokeMethod("updateProgress", args);
     }
 
