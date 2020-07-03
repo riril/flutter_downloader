@@ -147,9 +147,10 @@ class _MyHomePageState extends State<MyHomePage> {
     IsolateNameServer.removePortNameMapping('downloader_send_port');
   }
 
-  static void downloadCallback(String id, DownloadTaskStatus status, int progress) {
+  static void downloadCallback(String id, DownloadTaskStatus status, int progress, int downloaded, int total) {
     if (debug) {
       print('Background Isolate Callback: task ($id) is in status ($status) and process ($progress)');
+      print('Background Isolate Callback: task ($id): downloaded ($downloaded), total ($total)');
     }
     final SendPort send = IsolateNameServer.lookupPortByName('downloader_send_port');
     send.send([id, status, progress]);
