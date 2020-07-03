@@ -340,7 +340,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                     outputStream.write(buffer, 0, bytesRead);
 
                     if ((lastProgress == 0 || progress >= (lastProgress + stepUpdate) || progress == 100)
-                            && progress != lastProgress) {
+                            && count != (contentLength + downloadedBytes)) {
                         lastProgress = progress;
                         updateNotification(context, filename, DownloadStatus.RUNNING, progress, null, count, contentLength + downloadedBytes);
                         taskDao.updateTask(getId().toString(), DownloadStatus.RUNNING, progress);
@@ -474,7 +474,7 @@ public class DownloadWorker extends Worker implements MethodChannel.MethodCallHa
                     .setSmallIcon(android.R.drawable.stat_sys_download_done);
         } else if (status == DownloadStatus.FAILED) {
             shouldUpdate = true;
-            builder.setContentText(msgFailed).setProgress(100, progress, false);
+            builder.setContentText(msgFailed);
             builder.setOngoing(false)
                     .setSmallIcon(android.R.drawable.stat_sys_download_done);
         } else if (status == DownloadStatus.PAUSED) {
